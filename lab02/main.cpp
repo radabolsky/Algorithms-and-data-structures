@@ -3,6 +3,7 @@
 #include "shape.h"
 
 
+
 class cross : public shape {
 protected:
     point c_center;

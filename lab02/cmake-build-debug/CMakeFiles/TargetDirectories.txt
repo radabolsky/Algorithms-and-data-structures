@@ -1,3 +1,3 @@
-E:/CLionProjects/Algorithms-and-data-structures/lab01/cmake-build-debug/CMakeFiles/1.dir
-E:/CLionProjects/Algorithms-and-data-structures/lab01/cmake-build-debug/CMakeFiles/edit_cache.dir
-E:/CLionProjects/Algorithms-and-data-structures/lab01/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+C:/Users/bobyl/Desktop/univer/alg&data/labs/2sem/Algorithms-and-data-structures/lab02/cmake-build-debug/CMakeFiles/1.dir
+C:/Users/bobyl/Desktop/univer/alg&data/labs/2sem/Algorithms-and-data-structures/lab02/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/bobyl/Desktop/univer/alg&data/labs/2sem/Algorithms-and-data-structures/lab02/cmake-build-debug/CMakeFiles/rebuild_cache.dir

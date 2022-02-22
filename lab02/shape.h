@@ -2,6 +2,7 @@
 #include <list>
 #include <iostream>
 #include "screen.h"
+#include <exception>
 //
 // Created by bobyl on 08.02.2022.
 //
