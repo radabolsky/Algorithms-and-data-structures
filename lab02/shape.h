@@ -1,13 +1,31 @@
-
 #include <list>
 #include <iostream>
 #include "screen.h"
-#include <exception>
+
 //
 // Created by bobyl on 08.02.2022.
 //
 
 #ifndef INC_1_SHAPE_H
+
+
+class OutOfScreen : public std::exception {
+    std::string s;
+public:
+    OutOfScreen(std::string s_er, int a, int b);
+    const char * what() const noexcept override;
+};
+
+OutOfScreen::OutOfScreen(std::string s_er, int a, int b) {
+    s_er += " Bad point: [" + std::to_string(a) + "][" + std::to_string(b) + "]";
+    s = s_er;
+}
+
+const char * OutOfScreen::what() const noexcept {
+    return s.c_str();
+}
+
+
 
 char screen[YMAX][XMAX];
 enum color {black = '*', white = '.'};
@@ -32,7 +50,7 @@ bool on_screen(int a, int b) {
 void put_point(int a, int b) {
     if(on_screen(a,b)) {
         screen[b][a] = black;
-    }
+    } else throw OutOfScreen("Point out of canvas.", a, b);
 }
 
 void put_point(point p) {put_point(p.x, p.y);}
@@ -113,7 +131,13 @@ std::list<shape*> shape::shapes; //размещение списка фигур 
 
 void shape_refresh() { // перерисовка всех фигур на экране
     screen_clear();
-    for (auto p_sh: shape::shapes) p_sh->draw(); // Динамическое связывание
+    for (auto p_sh: shape::shapes) {
+            try {
+                p_sh->draw(); // Динамическое связывание
+            } catch (OutOfScreen &ex) {
+                std::cout << ex.what() << std::endl;
+            }
+    }
     screen_refresh();
 }
 
@@ -150,11 +174,13 @@ public:
     }
 
     void move(int a, int b) { w.x += a; w.y += b; e.x += a; e.y += b; }
-    void draw( ) { put_line(w, e); }
+    void draw( ) {
+        put_line(w, e);
+    }
 
     void resize(double d) { // изменение длины линии в d раз
-        e.x += (e.x - w.x) * d;
-        e.y += (e.y - w.y) * d;
+        e.x += abs(e.x - w.x) * d;
+        e.y += abs(e.y - w.y) * d;
     }
 
 };
@@ -201,6 +227,7 @@ public:
     void draw( )
     {
         put_line(nwest( ), ne); put_line(ne, seast( ));
+
         put_line(seast( ), sw); put_line(sw, nwest( ));
     }
 

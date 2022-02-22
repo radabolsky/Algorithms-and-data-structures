@@ -33,10 +33,7 @@ public:
 class andrew_cross : public cross {
 
 public:
-    andrew_cross(point c, int s) {
-        c_center = c;
-        size = s;
-    };
+    andrew_cross(point c, int s): cross(c, s) {};
     void draw();
 };
 void andrew_cross::draw() {
@@ -128,13 +125,10 @@ int main() {
     line brim(point(4,1), 17); // козырек
     myshape face(point(25,1), point(25+12,1+8));
     cross left_cross(point(65, 6), 5);
-    cross right_cross(point(77, 6), 5);
+    cross right_cross(point(107, 6), 5);
     andrew_cross hat_cross(point(45, 6), 3);
 
-    shape_refresh( );
 
-    std::cout << "=== Generated... ===\n";
-    std::cin.get(); //Смотреть исходный набор
 
     //== 2.Подготовка к сборке ==
     hat.rotate_right( );
@@ -143,9 +137,6 @@ int main() {
     brim.resize(2.0);
     face.resize(2.0);
 
-    shape_refresh( );
-    std::cout << "=== Prepared... ===\n";
-    std::cin.get(); //Смотреть результат поворотов/отражений
 //== 3.Сборка изображения ==
 
     face.move(10, 10); // Лицо - в исходное положение
@@ -156,6 +147,13 @@ int main() {
     right(right_cross, face);
     shape_refresh( );
     std::cout << "=== Ready! ===\n";
+
+// == 4. Проверка исключений ==
+
+    std::cout << "OutOfScreen Exception Check:" << std::endl;
+    std::cout << "Move hat_cross by 100 in x & y axis" << std::endl;
+    hat_cross.move(100, 100);
+    shape_refresh();
 
     return 0;
 }

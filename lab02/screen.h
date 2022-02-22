@@ -1,10 +1,11 @@
-#include <exception>
 //
 // Created by bobyl on 08.02.2022.
 //
 
 #ifndef INC_1_SCREEN_H
 #define INC_1_SCREEN_H
+
+
 
 const int XMAX = 120; // ширина
 const int YMAX = 40; // высота
