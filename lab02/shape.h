@@ -8,6 +8,18 @@
 
 #ifndef INC_1_SHAPE_H
 
+class CantMove : public std:: exception {
+    std:: string s;
+public:
+    CantMove(std::string s_er);
+    const char * what() const noexcept override;
+};
+
+const char * CantMove::what() const noexcept {
+    return s.c_str();
+}
+
+CantMove::CantMove(std::string s_er) : s(s_er) {}
 
 class OutOfScreen : public std::exception {
     std::string s;
@@ -46,6 +58,11 @@ bool on_screen(int a, int b) {
 
     return in_x && in_y;
 }
+
+bool on_screen(point p) {
+    return on_screen(p.x, p.y);
+}
+
 
 void put_point(int a, int b) {
     if(on_screen(a,b)) {
@@ -173,7 +190,7 @@ public:
         return point(north().x, east().y);
     }
 
-    void move(int a, int b) { w.x += a; w.y += b; e.x += a; e.y += b; }
+    void move(int a, int b);
     void draw( ) {
         put_line(w, e);
     }
@@ -184,6 +201,27 @@ public:
     }
 
 };
+
+
+
+bool on_screen(shape& my_shape) { // Если левый верхний угол и правый нижний на холсте - то вся фигура на холсте
+    return on_screen(my_shape.nwest()) && on_screen(my_shape.seast());
+}
+
+void line::move(int a, int b) {
+    w.x += a;
+    w.y += b;
+    e.x += a;
+    e.y += b;
+    if (!on_screen(*this)) {
+        w.x += a;
+        w.y += b;
+        e.x += a;
+        e.y += b;
+        throw CantMove("Line will be out of screen!");
+    }
+
+}
 
 
 // Прямоугольник
@@ -221,7 +259,11 @@ public:
       ne.y = sw.y + w / 2;
     }
     void move(int a, int b)
-    { sw.x += a; sw.y += b; ne.x += a; ne.y += b; }
+    { sw.x += a; sw.y += b; ne.x += a; ne.y += b;
+     if (!on_screen(*this)) {
+         sw.x -= a; sw.y -= b; ne.x -= a; ne.y -= b;
+         throw CantMove("Rectangle will be out of screen!");
+     }}
     void resize(double d)
     { ne.x += (ne.x - sw.x) * d; ne.y += (ne.y - sw.y) * d; }
     void draw( )

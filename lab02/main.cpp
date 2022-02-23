@@ -55,6 +55,11 @@ void cross::resize(double d) {
 void cross::move(int a, int b) {
     c_center.x += a;
     c_center.y += b;
+    if (!on_screen(*this)) {
+        c_center.x -= a;
+        c_center.y -= b;
+        throw CantMove("After move cross will be out of screen!");
+    }
 }
 
 
@@ -108,10 +113,14 @@ void myshape :: draw() {
 }
 
 void myshape :: move(int a, int b) {
-    rectangle :: move(a, b);
-    l_eye.move(a, b);
-    r_eye.move(a, b);
-    mouth.move(a, b);
+    try {
+        rectangle::move(a, b);
+        l_eye.move(a, b);
+        r_eye.move(a, b);
+        mouth.move(a, b);
+    } catch (CantMove) { //Если неможем подвинуть прямоугольник - не можем подвинуть и фигуру
+        throw CantMove("Cant move rectangle => CantMove myshape!");
+    }
 }
 
 int main() {
@@ -134,7 +143,7 @@ int main() {
     hat.rotate_right( );
 
 
-    brim.resize(2.0);
+    brim.resize(3.0);
     face.resize(2.0);
 
 //== 3.Сборка изображения ==
@@ -149,11 +158,24 @@ int main() {
     std::cout << "=== Ready! ===\n";
 
 // == 4. Проверка исключений ==
+    {
+        std::cout << "OutOfScreen Exception Check:" << std::endl;
+        std::cout << "Make new cross in [1000][1000]" << std::endl;
+        cross ex_cross(point(1000, 1000), 10);
+        shape_refresh();
+    }
+    std::cin.get();
 
-    std::cout << "OutOfScreen Exception Check:" << std::endl;
-    std::cout << "Move hat_cross by 100 in x & y axis" << std::endl;
-    hat_cross.move(100, 100);
+    std::cout << "CantMove Exception Check: " << std::endl;
+    std::cout << "Move face by 100 in x & y axis" << std::endl;
+
+    try {
+        face.move(100, 100);
+    } catch (CantMove &ex) {
+        std::cout << ex.what() << std::endl;
+    }
     shape_refresh();
+    std::cin.get();
 
     return 0;
 }
