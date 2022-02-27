@@ -39,6 +39,8 @@ const char * OutOfScreen::what() const noexcept {
 
 
 
+using namespace std;
+
 char screen[YMAX][XMAX];
 enum color {black = '*', white = '.'};
 // === Поддержка экрана в форме матрицы символов ===
@@ -116,6 +118,11 @@ void screen_refresh() {
 }
 
 // === Библиотека фигур ===
+
+class CreationError: public std::exception{
+public:
+    CreationError(){}
+};
 
 struct shape { // виртуальный базовый класс "Фигура"
     static std::list<shape*> shapes; // Список всех фигур
