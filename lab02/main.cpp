@@ -9,8 +9,14 @@ protected:
     point c_center;
     int size;
 public:
-    cross(): c_center(0), size(0) {};
-    cross(point c, int s): c_center(c), size(s) {};
+    cross(): shape(), c_center(0), size(0) {};
+    cross(point c, int s): c_center(c), size(s) {
+        if (on_screen(c)){
+            c_center = c;
+            size = s;
+        }
+        else throw CreationError("cross creation error");
+    }
     point north() const {return point(c_center.x, c_center.y + size);}; //точки для привязки
     point south() const {return point(c_center.x, c_center.y - size);};
     point west() const {return point(c_center.x - size, c_center.y);};
@@ -33,6 +39,7 @@ public:
 class andrew_cross : public cross {
 
 public:
+    andrew_cross() : cross(){}
     andrew_cross(point c, int s): cross(c, s) {};
     void draw();
 };
@@ -89,6 +96,7 @@ class myshape : public rectangle {
     line r_eye; // Правый глаз
     line mouth; // рот
 public:
+    myshape(): rectangle(){}
     myshape(point, point);
     void draw() ;
     void move(int, int);
@@ -130,24 +138,94 @@ int main() {
     screen_init();
 
     // ==1. Объявление набор фигур ==
-    rectangle hat(point(5,3), point(5+14,3+5));
-    line brim(point(4,1), 17); // козырек
-    myshape face(point(25,1), point(25+12,1+8));
-    cross left_cross(point(65, 6), 5);
-    cross right_cross(point(107, 6), 5);
-    andrew_cross hat_cross(point(45, 6), 3);
 
+//    line brim(point(4,1), 17); // козырек
+//    myshape face(point(25,1), point(25+12,1+8));
+//    cross left_cross(point(65, 6), 5);
+//    cross right_cross(point(107, 6), 5);
+//    andrew_cross hat_cross(point(45, 6), 3);
+
+    rectangle hat;
+    line brim;
+    myshape face;
+    cross left_cross;
+    cross right_cross;
+    andrew_cross hat_cross;
+
+    try{
+        rectangle test(point(1000,3), point(5+14,3+5));
+        hat = test;
+    }
+    catch(CreationError &ex){
+        cout << "==" << endl << ex.what() << endl;
+        cout << "The figure was replaced with a reference one" << endl <<"=="<< endl;
+        rectangle n_fig(point(5,3), point(5+14,3+5));
+        hat = n_fig;
+    }
+
+    try{
+        line l_test(point(4000,1), 17);
+        brim = l_test;
+    }
+    catch(CreationError &ex){
+        cout << "==" << endl << ex.what() << endl;
+        cout << "The figure was replaced with a reference one" << endl <<"=="<< endl;
+        line l_fig(point(4,1), 17);
+        brim = l_fig;
+    }
+
+    try{
+        myshape l_test(point(5,1), point(25+12,1+8));
+        face = l_test;
+    }
+    catch(CreationError &ex){
+        cout << "==" << endl << ex.what() << endl;
+        cout << "The figure was replaced with a reference one" << endl <<"=="<< endl;
+        myshape l_test(point(25, 1), point(25 + 12, 1 + 8));
+        face = l_test;
+    }
+
+    try{
+        cross l_test(point(650, 6), 5);
+        left_cross = l_test;
+    }
+    catch(CreationError &ex){
+        cout << "==" << endl << ex.what() << endl;
+        cout << "The figure was replaced with a reference one" << endl <<"=="<< endl;
+        cross l_test(point(65, 6), 5);
+        left_cross = l_test;
+    }
+
+    try{
+        cross l_test(point(1070, 6), 5);
+        right_cross = l_test;
+    }
+    catch(CreationError &ex){
+        cout << "==" << endl << ex.what() << endl;
+        cout << "The figure was replaced with a reference one" << endl <<"=="<< endl;
+        cross l_test(point(107, 6), 5);
+        right_cross = l_test;
+    }
+
+    try{
+        andrew_cross l_test(point(450, 6), 3);
+        hat_cross = l_test;
+    }
+    catch(CreationError &ex){
+        cout << "==" << endl << ex.what() << endl;
+        cout << "The figure was replaced with a reference one" << endl <<"==" << endl;
+        andrew_cross l_test(point(45, 6), 3);
+        hat_cross = l_test;
+    }
 
 
     //== 2.Подготовка к сборке ==
     hat.rotate_right( );
 
-
     brim.resize(3.0);
     face.resize(2.0);
 
-
-    //== 3.Сборка изображения ==
+//    //== 3.Сборка изображения ==
 
     face.move(10, 10); // Лицо - в исходное положение
     up(brim, face);
@@ -159,12 +237,12 @@ int main() {
     std::cout << "=== Ready! ===\n";
 
 // == 4. Проверка исключений ==
-    {
-        std::cout << "OutOfScreen Exception Check:" << std::endl;
-        std::cout << "Make new cross in [1000][1000]" << std::endl;
-        cross ex_cross(point(1000, 1000), 10);
-        shape_refresh();
-    }
+//    {
+//        std::cout << "OutOfScreen Exception Check:" << std::endl;
+//        std::cout << "Make new point in [1000][1000]" << std::endl;
+//        put_point(1000, 1000);
+//        shape_refresh();
+//    }
     std::cin.get();
 
     std::cout << "CantMove Exception Check: " << std::endl;

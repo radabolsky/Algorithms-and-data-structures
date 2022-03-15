@@ -1,6 +1,7 @@
 #include <list>
 #include <iostream>
 #include "screen.h"
+#include <string>
 
 //
 // Created by bobyl on 08.02.2022.
@@ -37,7 +38,18 @@ const char * OutOfScreen::what() const noexcept {
     return s.c_str();
 }
 
+class CreationError: public std::exception{
+    std::string s;
+public:
+    explicit CreationError(std::string s_er);
+    const char * what() const noexcept override;
+};
 
+CreationError::CreationError(std::string s_er) : s(std::move(s_er)) {}
+
+const char * CreationError::what() const noexcept {
+    return s.c_str();
+}
 
 using namespace std;
 
@@ -119,10 +131,6 @@ void screen_refresh() {
 
 // === Библиотека фигур ===
 
-class CreationError: public std::exception{
-public:
-    CreationError(){}
-};
 
 struct shape { // виртуальный базовый класс "Фигура"
     static std::list<shape*> shapes; // Список всех фигур
@@ -179,10 +187,17 @@ protected:
     point w, e;
 
 public:
-    line(point a, point b) : w(a), e(b) {}; // Произвольная линия по двум точкам
+    line() : shape(){}
+    line(point a, point b){
+        if (on_screen(a) && on_screen(b)){
+            w = a;
+            e = b;
+        } else throw CreationError("line creation error");
+    } // Произвольная линия по двум точкам
     line(point a, int L) {
         w = point(a.x + L - 1, a.y);
         e = a;
+        if (on_screen(w) && on_screen(e)){} else throw CreationError("line creation error");
     }
     point north( ) const { return point((w.x+e.x)/2, e.y<w.y? w.y : e.y); }
     point south( ) const { return point((w.x+e.x)/2, e.y<w.y? e.y : w.y); }
@@ -236,7 +251,15 @@ class rectangle : public rotatable {
 protected:
     point sw, ne;
 public:
-    rectangle(point a, point b): sw(a), ne(b) {}
+    rectangle() : shape(){}
+    rectangle(point a, point b)//:  sw(a), ne(b){}
+//    try: sw(a), ne(b)
+    {
+        if (on_screen(a) && on_screen(b)) {
+            sw = a;
+            ne = b;
+        } else throw CreationError("rectangle creation error");
+    }
     point north( ) const { return point((sw.x + ne.x) / 2, ne.y); }
     point south( ) const { return point((sw.x + ne.x) / 2, sw.y); }
     point east( ) const { return point(ne.x, (sw.y + ne.y) / 2); }
