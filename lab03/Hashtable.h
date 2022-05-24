@@ -19,7 +19,7 @@ struct MyNode { // Элемент ХТ
     int key; // вес
     MyNode* down; // ссылка вниз
     MyNode() : down(nullptr), key() {} // конструктор по умолчанию
-    explicit MyNode(int k, MyNode *d = nullptr) : key(k), down(d) {} // конструктор
+    explicit MyNode(int k, MyNode *down = nullptr) : key(k), down(down) {} // конструктор
     ~MyNode() { delete down; } // Деструктор узла
 
 };
@@ -35,17 +35,18 @@ struct readIter: public std::iterator<
 
     HTColumn *columns; //массив сегментов
     size_t columnIndex; //позиция в массиве
-    HTColumn column; // Указатель на данные
+    HTColumn elemInColumn; // Указатель на данные
 
 
-    explicit readIter(MyNode* p = nullptr) : columns(nullptr), columnIndex(0), column(p) {} // конструктор по умолчанию
+    explicit readIter(MyNode* p = nullptr, int colIndex = 0) : columns(nullptr), columnIndex(colIndex), elemInColumn(p) {} // конструктор по умолчанию
+
 
     bool operator == (const readIter & Other) const {
-        return column == Other.column; // сравнение итераторов
+        return elemInColumn == Other.elemInColumn; // сравнение итераторов
     }
 
     bool operator != (const readIter & Other) const {
-        return column != Other.column;
+        return elemInColumn != Other.elemInColumn;
     }
 
     readIter operator++(); //объявление инкремента
@@ -56,11 +57,11 @@ struct readIter: public std::iterator<
     }
 
     pointer operator -> () { // указатель на значение
-        return & (column->key); // возвращаем указатель на значение
+        return & (elemInColumn->key); // возвращаем указатель на значение
     }
 
     reference operator * () {
-        return column->key; // возвращаем значение по ссылке
+        return elemInColumn->key; // возвращаем значение по ссылке
     }
 
 };
@@ -137,6 +138,12 @@ public:
 
 
     std::pair<readIter, bool> erase(int);
+    readIter eraseElem(int num) {
+        if (erase(num).second)
+            return erase(num).first;
+        else //Todo можно бросить exception
+            return readIter(nullptr);
+    }
 
     HT(): tag('A' + tags++), buckets(new HTColumn[buckets_counter]) {
         for (int i = 0; i < buckets_counter; ++i) buckets[i] = nullptr;
@@ -210,30 +217,30 @@ readIter HT::begin() const {//Итератор на начало
     readIter begin(nullptr); // Итератор чтения
     begin.columns = this->buckets;
     for (; begin.columnIndex < this->buckets_counter; ++begin.columnIndex) { //проходимся по всем колонкам таблицы
-        begin.column = buckets[begin.columnIndex];
-        if (begin.column) break; //Выход, если сегмент не пуст, результат - его начало
+        begin.elemInColumn = buckets[begin.columnIndex];
+        if (begin.elemInColumn) break; //Выход, если сегмент не пуст, результат - его начало
     }
     return begin;
 }
 
 readIter readIter::operator++() // Инкремент итератора = шаг по ХТ
 {
-    if(!column) { //Первое обращение?
+    if(!elemInColumn) { //Первое обращение?
         return *this; // Текущая колонка еще не выставлена
     }
     else { //Текущий итератор указывает на элемент из колонки
-        if(column->down) { // Есть следующий в колонке - вниз
-            column = column->down;
+        if(elemInColumn->down) { // Есть следующий в колонке - вниз
+            elemInColumn = elemInColumn->down;
             return (*this);
         }
         while (++columnIndex < HT::buckets_counter) {//Поиск очередной не пустой колонки с элементом
             if (columns[columnIndex]) { //Найден непустая колонка
-                column = columns[columnIndex]; // Устанавливаем итератор на голову колонки
+                elemInColumn = columns[columnIndex]; // Устанавливаем итератор на голову колонки
                 return *this;
             }
 
         }
-        column = nullptr; //Таблица закончилась
+        elemInColumn = nullptr; //Таблица закончилась
         return *this;
     }
 }
@@ -266,7 +273,7 @@ readIter HT::find(int toFind) const {
     auto colIndex = hash(toFind);
     HTColumn col = buckets[colIndex];
     while (col) {
-        if (col->key == toFind) return readIter(col);
+        if (col->key == toFind) return readIter(col, colIndex);
         else col = col->down;
     }
     return end();
@@ -277,9 +284,10 @@ std::pair<readIter, bool> HT::insert(readIter, int k) //Вставка ново�
     auto colIndex(hash(k));
     HTColumn elem = buckets[colIndex];
     while (elem) {
-        if (elem->key == k) return make_pair(readIter(elem), true);
+        if (elem->key == k) return make_pair(readIter(elem), true); // уже есть
         else elem = elem->down;
     }
+    // Новый элемент
     buckets[colIndex] = new MyNode(k, buckets[colIndex]);
     ++count;
     return make_pair(readIter(buckets[colIndex]), true);
@@ -309,26 +317,40 @@ HT &HT::operator^=(const HT & right) { // xor = (left + right) - (left * right)
 }
 
 HT &HT::operator&=(const HT & right) {
-    HT leftTemp;
-    this->swap(leftTemp);
-    for (auto x : right) {
-        if (leftTemp.find(x) != end()) { // Есть пересечение - добавить
-            this->insert(x);
+
+    for (auto x : *this) {
+        if (right.find(x) == end()) { // Элемент не нашелся
+            this->erase(x);
         }
     }
     return *this;
 }
 
 HT &HT::operator-=(const HT & right) {
-    // Берем те элементы, которых нет в right
-    HT leftTemp;
-    this->swap(leftTemp);
-    for (auto x : leftTemp) {
-        if (right.find(x) == right.end()) { // в right не нашелся x
-            this->insert(x);
-        }
-    }
+    // Удаляем те элементы, которые есть в right
+    for (auto x : right)
+        this->erase(x);
+
     return *this;
+}
+
+std::pair<readIter, bool> HT::erase(int toErase) {
+    readIter founded = find(toErase);
+    if (founded == end()) return std::make_pair(readIter(nullptr), false); // элемент в ХТ не найден
+    MyNode* head = this->buckets[founded.columnIndex]; // Голова списка
+    if (head == founded.elemInColumn) { //удаляется голова списка
+        this->buckets[founded.columnIndex] = founded.elemInColumn->down; // Следующий элемент - голова
+        founded.elemInColumn = nullptr; // Отвязываем для удаления
+        delete founded.elemInColumn;
+        return std::make_pair(founded, true); // возвращаем итератор на освобожденную ячейку
+    }
+    MyNode* up = head;
+    while (up->down != founded.elemInColumn) up = up->down; // доходим до элемента
+    up->down = founded.elemInColumn->down; // Перевязываем верх и низ
+    founded.elemInColumn->down = nullptr; // Отвязываем низ
+    delete founded.elemInColumn; // Чистим память
+
+    return std::make_pair(founded, true); //возвращаем итератор на освобожденную ячейку
 }
 
 
