@@ -9,85 +9,91 @@
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+#include <valarray>
 
-using namespace std;
 
-struct Node { // Элемент ХТ
+
+
+struct MyNode { // Элемент ХТ
     int key; // вес
-    Node *down; // ссылка вниз
-    Node() : down(nullptr) {} // конструктор по умолчанию
-    Node(int k, Node *d = nullptr) : key(k), down(d) {} // конструктор
-    ~Node() { delete down; } // Деструктор узла
+    MyNode* down; // ссылка вниз
+    MyNode() : down(nullptr), key() {} // конструктор по умолчанию
+    explicit MyNode(int k, MyNode *d = nullptr) : key(k), down(d) {} // конструктор
+    ~MyNode() { delete down; } // Деструктор узла
 
 };
 
 
 // ИТЕРАТОР ЧТЕНИЯ
+typedef MyNode* HTColumn;
 
-
-struct myiter : public iterator<
-        forward_iterator_tag,
+struct readIter: public std::iterator<
+        std::forward_iterator_tag,
         int
         > {
 
-    Node **bct; //массив сегментов
-    size_t pos; //позиция в массиве
-    Node *Ptr; // Указатель на данные
+    HTColumn *columns; //массив сегментов
+    size_t columnIndex; //позиция в массиве
+    HTColumn column; // Указатель на данные
 
 
-    myiter(Node *p = nullptr) : bct(nullptr), pos(0), Ptr(p) {} // конструктор по умолчанию
+    explicit readIter(MyNode* p = nullptr) : columns(nullptr), columnIndex(0), column(p) {} // конструктор по умолчанию
 
-    bool operator == (const myiter & Other) const {
-        return Ptr == Other.Ptr; // сравнение итераторов
+    bool operator == (const readIter & Other) const {
+        return column == Other.column; // сравнение итераторов
     }
 
-    bool operator != (const myiter & Other) const {
-        return Ptr != Other.Ptr;
+    bool operator != (const readIter & Other) const {
+        return column != Other.column;
     }
 
-    myiter operator++(); //объявление инкремента
-    myiter operator++(int) {
-        myiter temp(*this); // сохраняем значение
+    readIter operator++(); //объявление инкремента
+    readIter operator++(int) {
+        readIter temp(*this); // сохраняем значение
         ++(*this); // Увеличиваем значение
         return temp;
     }
 
-    pointer operator -> () {
-        return & Ptr->key; // возвращаем указатель на значение
+    pointer operator -> () { // указатель на значение
+        return & (column->key); // возвращаем указатель на значение
     }
 
     reference operator * () {
-        return Ptr->key; // возвращаем значение по ссылке
+        return column->key; // возвращаем значение по ссылке
     }
 
 };
+
 
 // Итератор вставки (универсальный)
-template <typename Container, typename Iter = myiter>
-class outiter:
-public iterator<output_iterator_tag, typename Container::value_type> {
+template <typename Container, typename ReadIter = readIter>
+class insertIter:
+public std::iterator<std::output_iterator_tag, typename Container::value_type> {
 protected:
     Container& container; // контейнер для вставки элементов
-    Iter iter; // Текущее значение итератора
+    ReadIter readiter; // Текущее значение итератора
 public:
-    outiter(Container& c, Iter it) : container(c), iter(it) {} // Конструктор
-    const outiter<Container>&
-        operator = (const typename Container::value_type& value) {
-        iter = container.insert(iter, value).first;
-        return *this;
-    }
-    const outiter<Container>& // Присваивание копии - фиктивное
-        operator = (const outiter<Container>&) { return *this; }
+    insertIter(Container& container, ReadIter riter) : container(container), readiter(riter) {} // Конструктор итератора вставки
 
-    outiter<Container>& operator* () {return *this;} // Разыменование - пустая операция
-    outiter<Container>& operator++ () {return *this;} // Инкремент - пустая операция
-    outiter<Container>& operator++ (int) {return *this;} // Инкремент - пустая операция
+    const insertIter<Container>& // Равенство возвращает адрес итератора вставки контейнера, а получает value_type
+        operator = (const typename Container::value_type& value) {
+            readiter = container.insert(readiter, value).first;
+            return *this;
+    }
+    const insertIter<Container>& // Присваивание копии - фиктивное
+        operator = (const insertIter<Container>&) { return *this; }
+
+    insertIter<Container>& operator* () {return *this;} // Разыменование - пустая операция
+    insertIter<Container>& operator++ () {return *this;} // Инкремент - пустая операция
+    insertIter<Container>& operator++ (int) {return *this;} // Инкремент - пустая операция
 };
+
 
 template <typename Container, typename Iter>
 //Функция для создания итератора вставки
-inline outiter<Container, Iter> inserter(Container& c, Iter it) {
-    return outiter<Container, Iter>(c,it);
+insertIter<Container, Iter> myInserter(Container& c, Iter it) {
+    return insertIter<Container, Iter>(c, it);
 }
 
 
@@ -95,70 +101,71 @@ inline outiter<Container, Iter> inserter(Container& c, Iter it) {
 class HT { //контейнер - хеш-таблица
     static size_t tags; // Счетчик тегов
     char tag; //тег таблицы
-    Node **bucket; // массив сегментов
+    HTColumn *buckets; // массив сегментов
     size_t count = 0; // мощность множества
 public:
-    static const size_t Buckets = 16; // К-во сегментов в демо-варианте
+    static const size_t buckets_counter = 16; // К-во сегментов в демо-варианте
     using key_type = int;
     using value_type = int;
-    using key_compare = equal_to<int>;
+    using key_compare = std::equal_to<int>;
 
     void swap(HT& right) {
         std::swap(tag, right.tag);
-        std::swap(bucket, right.bucket);
+        std::swap(buckets, right.buckets);
         std::swap(count, right.count);
     }
 
     int hash(int k) const { // Хэш-функция
-        return (k * (Buckets - 1) + 7) % Buckets;
+        return (k * (buckets_counter - 1) + 7) % buckets_counter;
     }
-    size_t bucket_count() {return Buckets;}
+    size_t bucket_count() {return buckets_counter;}
 
-    pair<myiter, bool> insert(myiter, int); // вставка
+    std::pair<readIter, bool> insert(readIter, int); // вставка
 
-    myiter insert(const int &k, myiter where = myiter(nullptr)) { //Обертка для вставки
+    readIter insert(const int &k, readIter where = readIter(nullptr)) { //Обертка для вставки
         return insert(where, k).first;
     }
 
+    void Display(); // Вывод ХТ
 
-
-    void Display ();
-
-    myiter begin() const;
-    myiter end() const {
-        return myiter(nullptr);
+    readIter begin() const;
+    readIter end() const {
+        return readIter(nullptr); // итератор в никуда
     };
 
 
 
 
-    pair<myiter, bool> erase(int);
+    std::pair<readIter, bool> erase(int);
 
-    HT(): tag('A' + tags++), bucket(new Node*[Buckets]) {
-        for (int i = 0; i < Buckets; ++i) bucket[i] = nullptr;
+    HT(): tag('A' + tags++), buckets(new HTColumn[buckets_counter]) {
+        for (int i = 0; i < buckets_counter; ++i) buckets[i] = nullptr;
     }
 
 
     int size() { return count; }
 
     template<typename MyIt> HT(MyIt, MyIt); //Конструктор из последовательности
-    ~HT();
-
-
-
-    myiter find(int k) const; // Поиск по ключу
-
-    HT(const HT& right) : HT() {
-        for (auto x = right.begin(); x != right.end(); ++x) insert(*x);
+    ~HT() {
+        --tags;
+        for (int bucket = 0; bucket < buckets_counter; ++bucket) delete buckets[bucket];
+        delete[] buckets;
     }
 
-    HT(HT&& right) : HT() {
+
+    readIter find(int toFind) const; // Поиск по ключу
+
+    HT(const HT& right) : HT() {
+        for (readIter i = right.begin(); i != right.end(); ++i) this->insert(*i);
+    }
+
+    HT(HT&& right) : HT() { //Конструктор копирования
         swap(right);
     }
 
     HT& operator = (const HT& right) {
         HT temp;
-        for (auto x = right.begin(); x != right.end(); ++x) insert(*x);
+        for (int & x : right) this->insert(x);
         swap(temp);
         return *this;
     }
@@ -178,7 +185,7 @@ public:
 
     HT operator & (const HT& right) const {
         HT result(*this);
-        return (result |= right);
+        return (result &= right);
     }
 
     HT& operator -= (const HT&);
@@ -196,80 +203,133 @@ public:
     }
 
 
+    void Merge(const HT& right);
 };
 
-myiter HT::begin() const {//Итератор на начало
-    myiter p(nullptr);
-    p.bct = bucket;
-    for (; p.pos < Buckets; ++p.pos) {
-        p.Ptr = bucket[p.pos];
-        if (p.Ptr) break; //Выход, если сегмент не пуст, результат - его начало
+readIter HT::begin() const {//Итератор на начало
+    readIter begin(nullptr); // Итератор чтения
+    begin.columns = this->buckets;
+    for (; begin.columnIndex < this->buckets_counter; ++begin.columnIndex) { //проходимся по всем колонкам таблицы
+        begin.column = buckets[begin.columnIndex];
+        if (begin.column) break; //Выход, если сегмент не пуст, результат - его начало
     }
-    return p;
+    return begin;
 }
 
-myiter myiter::operator++() // Инкремент итератора = шаг по ХТ
+readIter readIter::operator++() // Инкремент итератора = шаг по ХТ
 {
-    if(!Ptr) { //Первое обращение?
-        return *this; // Не работает без предварительной устанвоки на ХТ
+    if(!column) { //Первое обращение?
+        return *this; // Текущая колонка еще не выставлена
     }
-    else { //Текущий уже выдан
-        if(Ptr->down) { // Есть следующий - вниз
-            Ptr = Ptr->down;
+    else { //Текущий итератор указывает на элемент из колонки
+        if(column->down) { // Есть следующий в колонке - вниз
+            column = column->down;
             return (*this);
         }
-        while (++pos < HT::Buckets) {//Поиск очередного элемента
-            if(Ptr == bct[pos])
+        while (++columnIndex < HT::buckets_counter) {//Поиск очередной не пустой колонки с элементом
+            if (columns[columnIndex]) { //Найден непустая колонка
+                column = columns[columnIndex]; // Устанавливаем итератор на голову колонки
                 return *this;
+            }
+
         }
-        Ptr = nullptr; //Таблица закончилась
+        column = nullptr; //Таблица закончилась
         return *this;
     }
 }
 
 
 void HT::Display() {
-    Node** P = new Node* [Buckets];
-    for (auto t = 0 ; t < Buckets; ++t) P[t] = bucket[t];
-    bool prod = true;
-    cout << endl;
-    while (prod) {
-        prod = false;
-        for (auto t = 0; t < Buckets; ++t) {
-            if(P[t]) {
-                cout << setw(4) << P[t]->key; // выводим ключ
-                P[t] = P[t]->down; // спускаемся ниже
-                prod = true;
+    HTColumn* toPrint = new HTColumn[buckets_counter]; // Массив колонок
+    for (auto i = 0 ; i < buckets_counter; ++i) toPrint[i] = buckets[i];
+    bool notAllPrinted = true;
+    std::cout << tag << ':' << std::endl;
+    while (notAllPrinted) {
+        notAllPrinted = false;
+
+        for (auto t = 0; t < buckets_counter; ++t) {
+
+            if(toPrint[t]) {
+                std::cout << std::setw(4) << toPrint[t]->key; // выводим ключ
+                toPrint[t] = toPrint[t]->down; // спускаемся ниже
+                notAllPrinted = true;
             } else {
-                cout << "-";
+                 std::cout << std::setw(4) << "-";
             }
-            cout << endl;
         }
+        std::cout << std::endl;
     }
 }
 
-// Поиск ключа k с выдачей итератора на него или end()
-myiter HT::find(int k) const {
-    auto t(hash(k));
-    Node *p(bucket[t]);
-    while (p) {
-        if (p->key == k) return myiter(p);
-        else p = p->down;
+// Поиск ключа toFind с выдачей итератора на него или end()
+readIter HT::find(int toFind) const {
+    auto colIndex = hash(toFind);
+    HTColumn col = buckets[colIndex];
+    while (col) {
+        if (col->key == toFind) return readIter(col);
+        else col = col->down;
     }
     return end();
 }
 
-pair<myiter, bool> HT::insert(myiter, int k) //Вставка нового значения k
+std::pair<readIter, bool> HT::insert(readIter, int k) //Вставка нового значения k
 {
-    auto t(hash(k));
-    Node* p(bucket[t]);
-    while (p) {
-        if (p->key == k) return make_pair(myiter(p), true);
-        else p = p->down;
+    auto colIndex(hash(k));
+    HTColumn elem = buckets[colIndex];
+    while (elem) {
+        if (elem->key == k) return make_pair(readIter(elem), true);
+        else elem = elem->down;
     }
-    bucket[t] = new Node(k, bucket[t]);
+    buckets[colIndex] = new MyNode(k, buckets[colIndex]);
     ++count;
-    return make_pair(myiter(bucket[t]), true);
+    return make_pair(readIter(buckets[colIndex]), true);
 }
+
+template<typename MyIt>
+HT::HT(MyIt begin, MyIt end) : HT() {
+    for (MyIt iter = begin; iter != end; ++iter) insert(*iter);
+}
+
+HT &HT::operator|=(const HT &right) {
+    //Copy из библиотеки std копирует в таблицу все значения и игнорирует дубликаты (из-за реализации Колинько)
+    // Если скопировать что-то в пустую таблицу, получим просто копирование
+    // Но можно и в не пустую, тогда все повторяющиеся элементы в резульатате не повторятся
+    // Ее предлагается использовать для реализации объединения множеств
+    std::copy(right.begin(), right.end(), // source - Откуда
+              myInserter(*this, readIter(nullptr))); // destination - куда
+
+    return *this;
+}
+
+HT &HT::operator^=(const HT & right) { // xor = (left + right) - (left * right)
+    HT leftTemp(*this);
+    *this |= right;
+    *this -= (leftTemp & right);
+    return *this;
+}
+
+HT &HT::operator&=(const HT & right) {
+    HT leftTemp;
+    this->swap(leftTemp);
+    for (auto x : right) {
+        if (leftTemp.find(x) != end()) { // Есть пересечение - добавить
+            this->insert(x);
+        }
+    }
+    return *this;
+}
+
+HT &HT::operator-=(const HT & right) {
+    // Берем те элементы, которых нет в right
+    HT leftTemp;
+    this->swap(leftTemp);
+    for (auto x : leftTemp) {
+        if (right.find(x) == right.end()) { // в right не нашелся x
+            this->insert(x);
+        }
+    }
+    return *this;
+}
+
 
 #endif //LAB03_HASHTABLE_H
