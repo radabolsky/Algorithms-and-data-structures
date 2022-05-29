@@ -13,9 +13,6 @@
 #include <valarray>
 #include <exception>
 
-
-
-
 struct MyNode { // Элемент ХТ
     int key; // вес
     MyNode* down; // ссылка вниз
@@ -92,6 +89,8 @@ public:
 };
 
 
+
+
 template <typename Container, typename Iter>
 //Функция для создания итератора вставки
 insertIter<Container, Iter> myInserter(Container& c, Iter it) {
@@ -130,6 +129,8 @@ public:
     }
 
     void Display(); // Вывод ХТ
+
+    void setSeq(){sequence = std::vector<int>{begin(), end()};}
 
     readIter begin() const;
     readIter end() const {
@@ -263,13 +264,15 @@ readIter readIter::operator++() // Инкремент итератора = ша�
 
 
 void HT::Display() {
+
     HTColumn* toPrint = new HTColumn[buckets_counter]; // Массив колонок
     for (auto i = 0 ; i < buckets_counter; ++i) toPrint[i] = buckets[i];
     bool notAllPrinted = true;
-    std::cout << tag << ':' << std::endl;
+//    std::cout << tag << ':' << std::endl;
     std::cout << "Sequence: ";
+    if ((sequence.empty()) && (size() != 0)) sequence = std::vector<int>{begin(), end()};
     for (auto x: sequence) std::cout << " " << x << " ";
-    std::cout << std::endl;
+    std::cout << "\n\nRepresentation in memory:\n";
     while (notAllPrinted) {
         notAllPrinted = false;
 
@@ -364,7 +367,7 @@ std::pair<readIter, bool> HT::erase(int toErase) {
 
     //Элемент найден
     sequence.erase(std::remove(sequence.begin(), sequence.end(), toErase), sequence.cend()); //Удаляет все элементы из последовательности с этим значением
-
+//    sequence.erase(sequence.begin() + toErase);
     MyNode* head = this->buckets[founded.columnIndex]; // Голова списка
     if (head == founded.elemInColumn) { //удаляется голова списка
         this->buckets[founded.columnIndex] = founded.elemInColumn->down; // Следующий элемент - голова
@@ -386,15 +389,21 @@ void HT::Sort() { //Сортировка последовательности ч
 }
 
 void HT::Merge(const HT &right) {
+//    std::vector<int> res(sequence.size() + right.sequence.size());
+//    std::merge(right.sequence.begin(), right.sequence.end(), sequence.begin(), sequence.end(), res.begin());
+//    sequence = res;
     Concat(right);
-    Sort();
+    std::sort(sequence.begin(), sequence.end());
+//    Sort();
 }
 
 void HT::Concat(const HT & right) {
+    std::vector<int> res = sequence;
+    res.insert(res.end(),
+                          right.sequence.begin(),
+                          right.sequence.end());
     *this |= right;
-    this->sequence.insert(this->sequence.cend(),
-                          right.sequence.cbegin(),
-                          right.sequence.cend());
+    sequence = res;
 }
 
 void HT::Erase(int from, int to) {
@@ -402,10 +411,11 @@ void HT::Erase(int from, int to) {
         // Проверка на exception
         sequence.at(from);
         sequence.at(to);
-
-        for (int i = from; i < sequence.size(); ++i) {
-            int toErase = sequence.at(i);
+        for (int i = from; i <= to; ++i) {
+            int toErase = sequence.at(from);
+//            std::cout<<"\nTest: "<<toErase <<std::endl;
             erase(toErase); // Удаляем, что удаляется
+//            sequence.erase(sequence.begin() + i);
         }
     } catch (std::out_of_range ex) {
         std::cout << "Erase out of range" << std::endl;
